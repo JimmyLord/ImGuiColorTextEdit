@@ -48,12 +48,18 @@ public:
         Line
     };
 
-    enum class DebugAction
+    enum class ExternalAction
     {
+        // File operations.
+        Save,
+        SaveAll,
+
+        // Debugging.
         Continue,
         StepInto,
         StepOver,
         StepOut,
+        Stop,
     };
 
     struct Breakpoint
@@ -210,8 +216,8 @@ public:
     const Breakpoints& GetBreakpoints() { return mBreakpoints; }
     void SetBreakpoints(const Breakpoints& aMarkers) { mBreakpoints = aMarkers; }
     void ToggleBreakpoint(int line);
-    void SetDebugActionCallback(const std::function<void(DebugAction)>& callback) { mOnDebugAction = callback; }
-    void RunDebugAction(DebugAction action);
+    void SetExternalActionCallback(const std::function<void(ExternalAction)>& callback) { mOnExternalAction = callback; }
+    void RunExternalAction(ExternalAction action);
 
     void SetDebuggerLine(int aLine) { mDebuggerLine = aLine; }
 
@@ -402,7 +408,7 @@ private:
 
     Breakpoints mBreakpoints;
     std::function<void(int, bool)> mOnBreakpointToggle;
-    std::function<void(DebugAction)> mOnDebugAction;
+    std::function<void(ExternalAction)> mOnExternalAction;
 
     int mDebuggerLine = -1;
 

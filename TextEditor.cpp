@@ -88,9 +88,11 @@ void TextEditor::ToggleBreakpoint(int line)
     mOnBreakpointToggle( line, mBreakpoints.count(line) == 1 );
 }
 
-void TextEditor::RunDebugAction(DebugAction action)
+void TextEditor::RunExternalAction(ExternalAction action)
 {
-    mOnDebugAction( action );
+    // Since the TextEditor eats inputs, we need to allow the text editor to forward us some actions.
+    // TODO: Need to find a way for the text editor to not consume inputs.
+    mOnExternalAction( action );
 }
 
 std::string TextEditor::GetText(const Coordinates& aStart, const Coordinates& aEnd) const
@@ -276,7 +278,7 @@ void TextEditor::DeleteRange(const Coordinates& aStart, const Coordinates& aEnd)
     mTextChanged = true;
 }
 
-int TextEditor::InsertTextAt(Coordinates& /* inout */ aWhere, const char* aValue)
+int TextEditor::InsertTextAt(Coordinates& aWhere, const char* aValue)
 {
     assert( !mReadOnly );
 
@@ -793,17 +795,23 @@ void TextEditor::HandleKeyboardInputs()
         else if(                  special_none   && ImGui::IsKeyPressed( ImGuiKey_F9 ) )
             ToggleBreakpoint( mState.mCursorPosition.mLine + 1 );
         else if(                  special_none   && ImGui::IsKeyPressed( ImGuiKey_F10 ) )
-            RunDebugAction( DebugAction::StepOver );
+            RunExternalAction( ExternalAction::StepOver );
         else if(                  special_none   && ImGui::IsKeyPressed( ImGuiKey_F11 ) )
-            RunDebugAction( DebugAction::StepInto );
+            RunExternalAction( ExternalAction::StepInto );
         else if(                  special_s      && ImGui::IsKeyPressed( ImGuiKey_F11 ) )
-            RunDebugAction( DebugAction::StepOut );
+            RunExternalAction( ExternalAction::StepOut );
         else if(                  special_none   && ImGui::IsKeyPressed( ImGuiKey_F5 ) )
-            RunDebugAction( DebugAction::Continue );
+            RunExternalAction( ExternalAction::Continue );
+        else if(                  special_s      && ImGui::IsKeyPressed( ImGuiKey_F5 ) )
+            RunExternalAction( ExternalAction::Stop );
+        else if(                  special_c      && ImGui::IsKeyPressed( ImGuiKey_S ) )
+            RunExternalAction( ExternalAction::Save );
+        else if(                  special_cs     && ImGui::IsKeyPressed( ImGuiKey_S ) )
+            RunExternalAction( ExternalAction::SaveAll );
 
         if( !IsReadOnly() && !io.InputQueueCharacters.empty() )
         {
-            for( int i = 0; i < io.InputQueueCharacters.Size; i++ )
+            for( int i=0; i<io.InputQueueCharacters.Size; i++ )
             {
                 ImWchar c = io.InputQueueCharacters[i];
                 if( c != 0 && ( c == '\n' || c >= 32 ) )
@@ -828,12 +836,11 @@ void TextEditor::HandleMouseInputs()
             bool click = ImGui::IsMouseClicked( 0 );
             bool doubleClick = ImGui::IsMouseDoubleClicked( 0 );
             double t = ImGui::GetTime();
-            bool tripleClick = click && !doubleClick && ( mLastClick != -1.0f && ( t - mLastClick ) < io.MouseDoubleClickTime );
+            bool tripleClick = click && !doubleClick && (mLastClick != -1.0f && (t - mLastClick) < io.MouseDoubleClickTime);
 
-            /*
-            Left mouse button triple click
-            */
-
+            //
+            // Left mouse button triple click
+            //
             if( tripleClick )
             {
                 if( !ctrl )
@@ -845,11 +852,9 @@ void TextEditor::HandleMouseInputs()
 
                 mLastClick = -1.0f;
             }
-
-            /*
-            Left mouse button double click
-            */
-
+            //
+            // Left mouse button double click
+            //
             else if( doubleClick )
             {
                 if( !ctrl )
@@ -864,10 +869,9 @@ void TextEditor::HandleMouseInputs()
 
                 mLastClick = (float)ImGui::GetTime();
             }
-
-            /*
-            Left mouse button click
-            */
+            //
+            // Left mouse button click
+            //
             else if( click )
             {
                 mState.mCursorPosition = mInteractiveStart = mInteractiveEnd = ScreenPosToCoordinates( ImGui::GetMousePos() );
@@ -892,11 +896,11 @@ void TextEditor::HandleMouseInputs()
 
 void TextEditor::Render()
 {
-    /* Compute mCharAdvance regarding to scaled font size (Ctrl + mouse wheel)*/
+    // Compute mCharAdvance regarding to scaled font size (Ctrl + mouse wheel)
     const float fontSize = ImGui::GetFont()->CalcTextSizeA( ImGui::GetFontSize(), FLT_MAX, -1.0f, "#", nullptr, nullptr ).x;
     mCharAdvance = ImVec2( fontSize, ImGui::GetTextLineHeightWithSpacing() * mLineSpacing );
 
-    /* Update palette with the current alpha from style */
+    // Update palette with the current alpha from style
     for( int i = 0; i < (int)PaletteIndex::Max; ++i )
     {
         ImVec4 color = ImGui::ColorConvertU32ToFloat4( mPaletteBase[i] );
